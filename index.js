@@ -4,47 +4,55 @@ const fetch = require('node-fetch');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Your API key (set as Railway environment variable)
-const API_KEY = process.env.API_KEY;
+// Define your API keys for each service
+const API_KEYS = {
+  oddsAPI: process.env.ODDS_API_KEY,
+  sportsDataIO: process.env.SPORTSDATAIO_API_KEY,
+  oddsAPI2: process.env.ODDS_API_KEY_2, // Example for a second API key
+};
 
-// Base URL for SportsGameOdds NFL predictions
-const BASE_URL = 'https://api.sportsgameodds.com/nfl/predictions';
+// Define base URLs for each API
+const BASE_URLS = {
+  oddsAPI: 'https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds',
+  sportsDataIO: 'https://api.sportsdata.io/v3/nfl/scores/json/GamesBySeason/{season}/{week}',
+  oddsAPI2: 'https://api.oddsmatrix.com/v1/odds/nfl', // Example for a second API
+};
 
-// Helper function to fetch multiple markets
-async function fetchMarket(market) {
+// Helper function to fetch data from an API
+async function fetchData(url, headers) {
   try {
-    const res = await fetch(`${BASE_URL}?market=${market}`, {
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!res.ok) throw new Error(`Failed to fetch ${market}: ${res.status}`);
-
-    const data = await res.json();
-    return { [market]: data };
-  } catch (err) {
-    console.error(err.message);
-    return { [market]: { error: `Failed to fetch ${market}` } };
+    const response = await fetch(url, { headers });
+    if (!response.ok) throw new Error(`Failed to fetch data from ${url}`);
+    return await response.json();
+  } catch (error) {
+    console.error(error);
+    return null;
   }
 }
 
-// Endpoint to fetch all prediction markets
+// Route to get predictions
 app.get('/predictions', async (req, res) => {
-  const markets = ['moneyline', 'spread', 'over_under', 'win_probability', 'team_stats']; // add more if available
-  const results = await Promise.all(markets.map(fetchMarket));
+  const headers = {
+    'x-rapidapi-key': API_KEYS.oddsAPI,
+    'Authorization': `Bearer ${API_KEYS.sportsDataIO}`,
+  };
 
-  // Merge all market objects into one
-  const merged = results.reduce((acc, curr) => ({ ...acc, ...curr }), {});
-  res.json(merged);
+  // Fetch data from each API
+  const oddsData = await fetchData(BASE_URLS.oddsAPI, headers);
+  const sportsData = await fetchData(BASE_URLS.sportsDataIO, headers);
+  const oddsData2 = await fetchData(BASE_URLS.oddsAPI2, headers);
+
+  // Combine and process data as needed
+  const predictions = {
+    oddsAPI: oddsData,
+    sportsDataIO: sportsData,
+    oddsAPI2: oddsData2,
+  };
+
+  res.json(predictions);
 });
 
-// Simple homepage
-app.get('/', (req, res) => {
-  res.send('<h1>NFL Predictions API is running!</h1><p>Go to <code>/predictions</code> for all markets.</p>');
-});
-
+// Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
