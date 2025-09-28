@@ -1,4 +1,3 @@
-// index.js
 const express = require("express");
 const fetch = require("node-fetch");
 const app = express();
@@ -6,47 +5,32 @@ const PORT = process.env.PORT || 3000;
 
 // Use your Railway API Key from environment variables
 const API_KEY = process.env.API_KEY;
-const BASE_URL = "https://api.sportsgameodds.com/v1/nfl/predictions";
+const BASE_URL = "https://api.sportsgameodds.com/v2/events";
 
-app.get("/", async (req, res) => {
+// Serve the predictions as JSON
+app.get("/predictions", async (req, res) => {
   try {
-    const response = await fetch(`${BASE_URL}?apikey=${API_KEY}`);
+    const response = await fetch(`${BASE_URL}?apikey=${API_KEY}&league=nfl`);
     if (!response.ok) throw new Error("Failed to fetch predictions.");
     const data = await response.json();
 
-    let html = `
-      <html>
-        <head>
-          <title>NFL Predictions</title>
-          <style>
-            body { font-family: Arial, sans-serif; background: #f4f4f4; text-align: center; }
-            h1 { color: #6A0DAD; }
-            .game { margin: 20px; padding: 15px; background: #fff; border-radius: 10px; display: inline-block; }
-            .team { font-weight: bold; }
-            .prob { color: green; }
-          </style>
-        </head>
-        <body>
-          <h1>NFL Predictions</h1>
-    `;
+    // Extract and format the necessary data
+    const predictions = data.events.map(event => ({
+      homeTeam: event.home_team,
+      awayTeam: event.away_team,
+      homeLogo: `https://example.com/logos/${event.home_team}.png`, // Replace with actual logo URLs
+      awayLogo: `https://example.com/logos/${event.away_team}.png`, // Replace with actual logo URLs
+      homeRecord: "3-1", // Placeholder, replace with actual data
+      awayRecord: "2-2", // Placeholder, replace with actual data
+      predictedWinner: event.home_team, // Placeholder, replace with actual prediction
+      prediction: 0.65, // Placeholder, replace with actual prediction
+      spread: "-3.5", // Placeholder, replace with actual spread
+      overUnder: "45.5" // Placeholder, replace with actual over/under
+    }));
 
-    data.games.forEach(game => {
-      html += `
-        <div class="game">
-          <div class="team">${game.home_team} vs ${game.away_team}</div>
-          <div>Home Win Probability: <span class="prob">${game.home_win_prob}%</span></div>
-          <div>Away Win Probability: <span class="prob">${game.away_win_prob}%</span></div>
-          <div>Vegas Spread: ${game.spread}</div>
-          <div>Over/Under: ${game.over_under}</div>
-        </div>
-      `;
-    });
-
-    html += `</body></html>`;
-    res.send(html);
-
+    res.json(predictions);
   } catch (err) {
-    res.send(`<h1>Error: Unable to load predictions.</h1><p>${err.message}</p>`);
+    res.status(500).json({ error: err.message });
   }
 });
 
